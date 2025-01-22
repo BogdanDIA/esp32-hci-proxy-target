@@ -72,5 +72,5 @@ If AP connection is successful, the IP received from AP can be seen in the conso
 I (4349) HCI-IP_common: - IPv4 address: 192.168.22.142
 ```
 
-If ESP32 connects to the AP and receives the IP, all is set and it will wait for a conenction from the host.
+If ESP32 connects to the AP and receives the IP, all is set and it will wait for a connection from the host.
 
