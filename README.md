@@ -34,14 +34,17 @@ Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme 
 ### Build and flash images with ESP-IDF
 If the esp-idf is installed on your system, then you could build and flashs the images directly:
 ```
-idf.py build flash
+git clone https://github.com/BogdanDIA/esp32-hci-proxy-target.git
+cd esp32-hci-proxy-target/hci_ip
+idf.py build flash monitor
 ```
 
 ## Connect the ESP32 to your AP
+The ESP32 is configured with 115200 8N1 parameters.
 
-If your ESP32 was set-up previously to connect to your AP then it will connect directly on the first boot. That is because the NVS(Non Volatile Storage) still keeps the WiFi credentials.
+If your ESP32 was set-up previously to connect to your AP then it will connect directly on the first boot. That is because the NVS (`Non Volatile Storage`) still keeps the WiFi credentials.
 
-If NVS is erased, user will be prompted on the console to enter the credentials at the first boot, after testing the console read/write. In the example below it is shown a missing first character typed by user but not received by ESP32 (a bug in ESP-IDF impl):
+If NVS is erased, user will be prompted on the console to enter the credentials at the first boot, after testing the console read/write. In the example below it is shown a missing first character typed by the user but not received by ESP32 (a bug in ESP-IDF impl) followed by the request to fill in `ssid password`:
 <pre>
 E (669) HCI-IP_connect: WiFi credentials in NVS do not exist
 I (679) HCI-IP_connect: Test console[0]: type <b>abcdefg</b> in terminal
