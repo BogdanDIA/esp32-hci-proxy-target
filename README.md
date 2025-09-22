@@ -54,11 +54,7 @@ Read from <b>console[1]:abcdefg</b> OK, will continue
 I (11839) HCI-IP_connect: Please input ssid password:
 </pre>
 
-If NVS is not previously erased, two scenarions are possible.
-
-To change SSID and password while already connected to AP, type blindly more than 10 'n' charachers like `nnnnnnnnnnnnnn` string folowed by Enter (just keep 'n' key pressed). It will trigger the change of credentials immediately.
-
-To change the SSID and password while connection to AP is failing, type blindly more than 10 'f' charachers like `ffffffffffffffff` string folowed by Enter (just keep 'f' key pressed). It will wait until the AP connection with the current credentials fails and then will trigger credentials change as above.
+If NVS is not previously erased, to change SSID and password, type blindly more than 10 'n' charachers like `nnnnnnnnnnnnnn` string folowed by Enter (just keep 'n' key pressed and hit enter). It will trigger the change of credentials immediately.
 
 For debugging purposes, the reason of last reboot is shown on the console upon processor boot. Following is a power supply brown-out situation:
 <pre>
