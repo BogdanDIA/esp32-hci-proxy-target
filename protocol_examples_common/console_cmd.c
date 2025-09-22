@@ -35,8 +35,12 @@ static int cmd_do_wifi_connect(int argc, char **argv)
 
     wifi_config_t wifi_config = {
         .sta = {
-            .scan_method = WIFI_ALL_CHANNEL_SCAN,
-            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+            .scan_method = EXAMPLE_WIFI_SCAN_METHOD,
+            .sort_method = EXAMPLE_WIFI_CONNECT_AP_SORT_METHOD,
+            .threshold.rssi = CONFIG_EXAMPLE_WIFI_SCAN_RSSI_THRESHOLD,
+            .threshold.authmode = EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD,
+            .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
+            .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
         },
     };
     if (connect_args.channel->count > 0) {

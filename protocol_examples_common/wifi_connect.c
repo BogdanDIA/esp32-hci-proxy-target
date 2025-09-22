@@ -15,6 +15,7 @@
 #include <string.h>
 #include "protocol_examples_common.h"
 #include "example_common_private.h"
+#include "esp_wifi.h"
 #include "esp_log.h"
 #include "rom/uart.h"
 
@@ -27,39 +28,8 @@ static SemaphoreHandle_t s_semph_get_ip_addrs = NULL;
 static SemaphoreHandle_t s_semph_get_ip6_addrs = NULL;
 #endif
 
-#if CONFIG_EXAMPLE_WIFI_SCAN_METHOD_FAST
-#define EXAMPLE_WIFI_SCAN_METHOD WIFI_FAST_SCAN
-#elif CONFIG_EXAMPLE_WIFI_SCAN_METHOD_ALL_CHANNEL
-#define EXAMPLE_WIFI_SCAN_METHOD WIFI_ALL_CHANNEL_SCAN
-#endif
-
-#if CONFIG_EXAMPLE_WIFI_CONNECT_AP_BY_SIGNAL
-#define EXAMPLE_WIFI_CONNECT_AP_SORT_METHOD WIFI_CONNECT_AP_BY_SIGNAL
-#elif CONFIG_EXAMPLE_WIFI_CONNECT_AP_BY_SECURITY
-#define EXAMPLE_WIFI_CONNECT_AP_SORT_METHOD WIFI_CONNECT_AP_BY_SECURITY
-#endif
-
-#if CONFIG_EXAMPLE_WIFI_AUTH_OPEN
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WEP
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WEP
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_PSK
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA2_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA_WPA2_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_WPA2_PSK
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA2_ENTERPRISE
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_ENTERPRISE
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA3_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA3_PSK
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WPA2_WPA3_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_WPA3_PSK
-#elif CONFIG_EXAMPLE_WIFI_AUTH_WAPI_PSK
-#define EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
-#endif
-
 static int s_retry_num = 0;
+static bool stop_wifi_retry = false;
 
 /*
  * @brief: Get WiFi SSID and password input from serial console and store in NVS
@@ -73,13 +43,26 @@ esp_err_t do_console_provision(bool provision_now, bool provision_reset)
   if (provision_reset)
     _provision_done = false;
 
-  if (!provision_now)
+  if (provision_now)
+  {
+    stop_wifi_retry = true;
+    ESP_LOGD(TAG, "Stop WiFi connect retry");
+  }
+  else
     return ESP_OK;
 
   if (provision_now && _provision_done)
     return ESP_OK; 
 
+  // read wifi config from NVS
   wifi_config_t wifi_config;
+  esp_err_t stat = esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config);
+  if (stat != ESP_OK)
+  {
+    ESP_LOGE(TAG, "Cannot read wifi_config from NVS");
+    return stat;
+  }
+
   char buf[sizeof(wifi_config.sta.ssid)+sizeof(wifi_config.sta.password)+2] = {0};
 
   // test console not to lose initial chars
@@ -143,6 +126,10 @@ esp_err_t do_console_provision(bool provision_now, bool provision_reset)
   }
 
   _provision_done = true;
+  stop_wifi_retry = false;
+
+  // restart ESP
+  esp_restart();
 
   return ESP_OK;
 }
@@ -151,7 +138,7 @@ static void example_handler_on_wifi_disconnect(void *arg, esp_event_base_t event
                                int32_t event_id, void *event_data)
 {
     s_retry_num++;
-    if (s_retry_num > CONFIG_EXAMPLE_WIFI_CONN_MAX_RETRY) {
+    if (0 /*s_retry_num > CONFIG_EXAMPLE_WIFI_CONN_MAX_RETRY*/) {
         ESP_LOGI(TAG, "WiFi Connect failed %d times, stop reconnect.", s_retry_num);
         /* let example_wifi_sta_do_connect() return */
         if (s_semph_get_ip_addrs) {
@@ -164,17 +151,23 @@ static void example_handler_on_wifi_disconnect(void *arg, esp_event_base_t event
 #endif
         return;
     }
-    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
-    esp_err_t err = esp_wifi_connect();
-    if (err == ESP_ERR_WIFI_NOT_STARTED) {
-        return;
+
+    if (!stop_wifi_retry)
+    {
+        ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+        esp_err_t err = esp_wifi_connect();
+        if (err == ESP_ERR_WIFI_NOT_STARTED) {
+            return;
+        }
+        ESP_ERROR_CHECK(err);
     }
-    ESP_ERROR_CHECK(err);
 }
 
 static void example_handler_on_wifi_connect(void *esp_netif, esp_event_base_t event_base,
                             int32_t event_id, void *event_data)
 {
+    ESP_LOGI(TAG, "Wi-Fi connected");
+
 #if CONFIG_EXAMPLE_CONNECT_IPV6
     esp_netif_create_ip6_linklocal(esp_netif);
 #endif // CONFIG_EXAMPLE_CONNECT_IPV6
@@ -338,6 +331,8 @@ esp_err_t example_wifi_connect(void)
             .sort_method = EXAMPLE_WIFI_CONNECT_AP_SORT_METHOD,
             .threshold.rssi = CONFIG_EXAMPLE_WIFI_SCAN_RSSI_THRESHOLD,
             .threshold.authmode = EXAMPLE_WIFI_SCAN_AUTH_MODE_THRESHOLD,
+            .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
+            .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
         },
     };
 #if CONFIG_EXAMPLE_WIFI_SSID_PWD_FROM_STDIN
