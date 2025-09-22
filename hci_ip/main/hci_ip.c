@@ -277,7 +277,6 @@ static void serial_prov_task(void *pvParameters)
   while(1)
   {
     int count_n = 0;
-    int count_f = 0;
     char c;
 
     while ((c = getc(stdin)) != '\n')
@@ -286,9 +285,6 @@ static void serial_prov_task(void *pvParameters)
         // n...n
         if (c == 0x6E)
           count_n++;
-        // f...f
-        if (c == 0x66)
-          count_f++;
       }
     }
 
@@ -298,12 +294,6 @@ static void serial_prov_task(void *pvParameters)
       if (ESP_OK != do_console_provision(true, true))
         ESP_LOGE(TAG, "Provision WiFi now failed");
     } 
-    else if (count_f >= CONFIG_PROVISIONING_SIZE)
-    {
-      ESP_LOGI(TAG, "Going to provision WiFi after connection retries end");
-      if (ESP_OK != do_console_provision(false, true))
-        ESP_LOGE(TAG, "Provision WiFi late failed");
-    }
   }
 }
 
